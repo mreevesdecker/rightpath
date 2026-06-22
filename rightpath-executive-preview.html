@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RightPath — Executive Preview</title>
+
+<!--
+  ============================================================================
+  TEAM / LIVE-SYNC SETUP  (optional — leave blank to run in local demo mode)
+  ----------------------------------------------------------------------------
+  To let people on DIFFERENT devices take the assessment from one shared link
+  and see a live-updating team dashboard, connect a free Firebase project:
+
+   1.  Go to https://console.firebase.google.com  ->  Add project (free).
+   2.  Build > Firestore Database > Create database > Start in TEST MODE.
+   3.  Project settings (gear) > "Your apps" > Web (</>) > register an app.
+   4.  Copy the firebaseConfig values into FIREBASE_CONFIG below.
+   5.  Host this file somewhere with a URL (Firebase Hosting, Netlify drop,
+       GitHub Pages, etc.) so people can open it via a link.
+
+  If FIREBASE_CONFIG is left empty, the tool still works fully in LOCAL mode:
+  multiple people can take it on the SAME device/browser and the dashboard
+  aggregates them locally.
+  ============================================================================
+-->
+
+<style>
+  :root{
+    --ink:#1c2330; --ink-soft:#4a5468; --line:#e4e7ee; --bg:#f4f6fa;
+    --card:#ffffff; --brand:#2d3e63; --brand2:#3a6ea5;
+    --presc:#c8553d; --motiv:#e0972f; --collab:#4f9d69; --method:#3a6ea5;
+    --shadow:0 10px 40px rgba(28,35,48,.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:920px;margin:0 auto;padding:0 20px 80px}
+
+  header{background:linear-gradient(135deg,#26324f 0%,#3a6ea5 100%);color:#fff;padding:22px 0;margin-bottom:34px}
+  .hd{max-width:920px;margin:0 auto;padding:0 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .cobrand{display:flex;align-items:center;gap:14px;font-weight:700;letter-spacing:.3px}
+  .cobrand .ss{font-size:15px}.cobrand .x{opacity:.45;font-weight:400}.cobrand .rp{font-size:15px}
+  .badge{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;background:rgba(255,255,255,.16);
+    padding:5px 12px;border-radius:30px;font-weight:600}
+
+  .screen{display:none;animation:fade .45s ease}
+  .screen.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:38px}
+
+  h1{font-size:30px;line-height:1.2;letter-spacing:-.5px;margin-bottom:14px}
+  h2{font-size:22px;letter-spacing:-.3px;margin-bottom:6px}
+  .lead{color:var(--ink-soft);font-size:17px;margin-bottom:26px}
+  .eyebrow{text-transform:uppercase;letter-spacing:2px;font-size:12px;font-weight:700;color:var(--brand2);margin-bottom:10px}
+
+  .whatlist{list-style:none;margin:6px 0 26px}
+  .whatlist li{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);font-size:15px}
+  .whatlist li:last-child{border-bottom:none}
+  .whatlist .ic{flex:0 0 26px;height:26px;border-radius:8px;background:#eef2f9;display:grid;place-items:center;color:var(--brand2);font-weight:800;font-size:14px}
+
+  .note{font-size:13px;color:var(--ink-soft);background:#f7f9fc;border:1px solid var(--line);border-left:3px solid var(--brand2);
+    padding:13px 16px;border-radius:10px;margin-top:8px}
+  .note.warn{border-left-color:var(--motiv);background:#fdf8f0}
+
+  .btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#fff;border:none;cursor:pointer;
+    font-size:16px;font-weight:600;padding:14px 30px;border-radius:12px;transition:transform .12s,background .2s}
+  .btn:hover{background:#22304d;transform:translateY(-1px)}
+  .btn.alt{background:#fff;color:var(--brand);border:1.5px solid var(--line)}
+  .btn.alt:hover{background:#f5f7fb}
+  .btn.sm{font-size:14px;padding:9px 16px;border-radius:10px}
+  .btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+  .btnrow{display:flex;justify-content:space-between;align-items:center;margin-top:30px;gap:12px;flex-wrap:wrap}
+  .linkbtn{background:none;border:none;color:var(--brand2);font-weight:600;cursor:pointer;font-size:14px;padding:8px 0;text-decoration:underline}
+
+  .prog{height:7px;background:#e9edf4;border-radius:10px;overflow:hidden;margin-bottom:8px}
+  .prog>div{height:100%;background:linear-gradient(90deg,var(--brand),var(--brand2));width:0;transition:width .35s ease}
+  .progmeta{display:flex;justify-content:space-between;font-size:13px;color:var(--ink-soft);margin-bottom:26px;font-weight:500}
+
+  .q{font-size:21px;font-weight:600;text-align:center;margin:14px 0 30px;line-height:1.35}
+  .qsub{text-align:center;color:var(--ink-soft);font-size:14px;margin-bottom:4px}
+  .scale{display:flex;align-items:center;justify-content:center;gap:18px;margin:20px 0}
+  .poleL,.poleR{flex:1;font-size:14px;color:var(--ink-soft);max-width:220px}
+  .poleL{text-align:right}.poleR{text-align:left}
+  .dots{display:flex;gap:14px}
+  .dot{cursor:pointer;border:2px solid #cdd5e2;background:#fff;border-radius:50%;transition:all .15s}
+  .dot:hover{border-color:var(--brand2);transform:scale(1.12)}
+  .dot.s1{width:34px;height:34px}.dot.s2{width:27px;height:27px}.dot.s3{width:22px;height:22px}
+  .dot.s4{width:27px;height:27px}.dot.s5{width:34px;height:34px}
+  .dot.sel{background:var(--brand2);border-color:var(--brand2);box-shadow:0 0 0 4px rgba(58,110,165,.18)}
+  .endlbl{display:flex;justify-content:space-between;font-size:12px;color:#9aa3b4;max-width:330px;margin:0 auto}
+
+  .reshero{text-align:center;padding:8px 0 4px}
+  .famtag{display:inline-block;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+    padding:5px 14px;border-radius:30px;color:#fff;margin-bottom:14px}
+  .pname{font-size:38px;letter-spacing:-1px;line-height:1.1;margin-bottom:8px}
+  .pdesc{color:var(--ink-soft);font-size:17px;max-width:560px;margin:0 auto 6px}
+  .matchpill{font-size:12px;color:var(--ink-soft);margin-top:10px}
+
+  .sec{margin-top:34px}
+  .sec h3{font-size:13px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-soft);margin-bottom:16px;font-weight:700}
+
+  .fac{margin-bottom:20px}
+  .faclbl{display:flex;justify-content:space-between;font-size:13px;margin-bottom:7px}
+  .faclbl b{font-weight:700;color:var(--ink)}
+  .faclbl .l,.faclbl .r{color:#9aa3b4;font-weight:500}
+  .factrack{position:relative;height:12px;background:#eef1f6;border-radius:10px}
+  .factrack .mid{position:absolute;left:50%;top:-3px;bottom:-3px;width:2px;background:#d4dae4;transform:translateX(-1px)}
+  .facmark{position:absolute;top:50%;width:20px;height:20px;border-radius:50%;background:var(--brand);
+    border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.2);transform:translate(-50%,-50%);transition:left .8s cubic-bezier(.2,.8,.2,1);z-index:2}
+  .facbase{position:absolute;top:50%;width:15px;height:15px;background:#fff;border:2.5px solid #8a93a6;
+    box-shadow:0 1px 4px rgba(0,0,0,.12);transform:translate(-50%,-50%) rotate(45deg);z-index:1;transition:left .8s cubic-bezier(.2,.8,.2,1)}
+  .faclegend{display:flex;gap:20px;font-size:12.5px;color:var(--ink-soft);margin-bottom:16px;font-weight:600;flex-wrap:wrap}
+  .faclegend i{display:inline-block;width:13px;height:13px;vertical-align:-2px;margin-right:6px}
+  .faclegend .lgyou{background:var(--brand);border-radius:50%}
+  .faclegend .lgbase{background:#fff;border:2.5px solid #8a93a6;width:11px;height:11px;transform:rotate(45deg)}
+  .faccap{font-size:12px;color:#9aa3b4;margin-top:8px;line-height:1.5}
+
+  .ss-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .ss-box{border:1px solid var(--line);border-radius:14px;padding:18px}
+  .ss-box.str{background:#f2f9f4;border-color:#d3ead9}
+  .ss-box.stg{background:#fbf5f1;border-color:#f0ddd1}
+  .ss-box h4{font-size:13px;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+  .ss-box.str h4{color:#3d7a51}.ss-box.stg h4{color:#b35a36}
+  .ss-box ul{list-style:none;font-size:14px}
+  .ss-box li{padding:4px 0 4px 18px;position:relative;color:var(--ink-soft)}
+  .ss-box li::before{content:"";position:absolute;left:2px;top:11px;width:6px;height:6px;border-radius:50%}
+  .ss-box.str li::before{background:#4f9d69}.ss-box.stg li::before{background:#c8553d}
+
+  .atwork{background:#f7f9fc;border:1px solid var(--line);border-radius:14px;padding:20px}
+  .atwork p{font-size:15px;color:var(--ink-soft)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .chip{background:#eef2f9;color:var(--brand);font-size:13px;font-weight:600;padding:6px 13px;border-radius:30px}
+
+  /* Role / about entry */
+  .roleField{width:100%;font-size:17px;padding:15px 18px;border:1.5px solid var(--line);border-radius:12px;
+    color:var(--ink);outline:none;transition:border .2s;font-family:inherit;margin-bottom:14px}
+  .roleField:focus{border-color:var(--brand2);box-shadow:0 0 0 4px rgba(58,110,165,.12)}
+  .flabel{font-size:13px;font-weight:700;color:var(--ink-soft);margin-bottom:6px;display:block}
+  .rolechips{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+  .rolechip{cursor:pointer;background:#eef2f9;color:var(--brand);font-size:13px;font-weight:600;
+    padding:8px 14px;border-radius:30px;border:1.5px solid transparent;transition:all .15s}
+  .rolechip:hover{border-color:var(--brand2);background:#e3eaf6}
+  .rolechip.sel{background:var(--brand);color:#fff}
+
+  /* Change & Drive */
+  .cdwrap{background:#f7f9fc;border:1px solid var(--line);border-radius:14px;padding:22px}
+  .cdhero{display:flex;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap}
+  .cdscore{font-size:46px;font-weight:800;letter-spacing:-1.5px;line-height:1;color:var(--brand)}
+  .cdscore small{font-size:18px;color:#9aa3b4;font-weight:600}
+  .cdband{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;
+    padding:7px 15px;border-radius:30px;color:#fff;background:var(--brand2)}
+  .cdgauge{position:relative;height:14px;border-radius:10px;
+    background:linear-gradient(90deg,#4f9d69 0%,#e0972f 55%,#c8553d 100%);margin:8px 0 6px}
+  .cdmark{position:absolute;top:50%;width:22px;height:22px;border-radius:50%;background:#fff;
+    border:3px solid var(--brand);box-shadow:0 2px 8px rgba(0,0,0,.28);transform:translate(-50%,-50%);
+    transition:left .9s cubic-bezier(.2,.8,.2,1);left:0%}
+  .cdscalelbl{display:flex;justify-content:space-between;font-size:11px;color:#9aa3b4;margin-bottom:16px}
+  .cdtext{font-size:15px;color:var(--ink-soft);margin:14px 0 20px}
+  .cdsubs{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .cdsublbl{font-size:13px;font-weight:700;margin-bottom:7px;display:flex;justify-content:space-between}
+  .cdsublbl span{color:var(--brand2)}
+  .cdbar{height:9px;background:#e9edf4;border-radius:8px;overflow:hidden}
+  .cdbar>div{height:100%;width:0;border-radius:8px;background:linear-gradient(90deg,var(--brand),var(--brand2));transition:width .9s ease}
+  .cdcap{font-size:12px;color:#9aa3b4;margin-top:7px;line-height:1.4}
+
+  /* Team vision / members */
+  .teamwrap{background:linear-gradient(135deg,#f0f4fb,#eaf0f8);border:1px solid var(--line);border-radius:16px;padding:26px}
+  .teamgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px 0}
+  .member{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center;position:relative;overflow:hidden}
+  .member .strip{position:absolute;left:0;top:0;bottom:0;width:5px}
+  .member .role{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#9aa3b4;font-weight:600}
+  .member .mp{font-size:15px;font-weight:700;margin:3px 0}
+  .member .mname{font-size:12px;color:var(--ink);font-weight:600}
+  .member .mf{font-size:11px;color:var(--ink-soft)}
+  .member.you{outline:2px solid var(--brand);outline-offset:-1px}
+  .member.you .youtag{position:absolute;top:6px;right:6px;background:var(--brand);color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:20px;letter-spacing:.5px}
+
+  .coverage{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:18px;max-width:480px}
+  .cov{text-align:center;padding:12px 6px;border-radius:10px;background:#fff;border:1px solid var(--line)}
+  .cov .dotc{width:10px;height:10px;border-radius:50%;display:inline-block;margin-bottom:5px}
+  .cov .cn{font-size:12px;font-weight:700}.cov .cc{font-size:11px;color:var(--ink-soft)}
+  .insight{margin-top:18px;font-size:14px;color:var(--ink-soft);background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .insight b{color:var(--ink)}
+
+  .cta{margin-top:34px;background:linear-gradient(135deg,#26324f,#3a6ea5);color:#fff;border-radius:16px;padding:30px;text-align:center}
+  .cta h3{color:#fff;font-size:22px;letter-spacing:-.3px;margin-bottom:10px;text-transform:none}
+  .cta p{opacity:.9;font-size:15px;max-width:520px;margin:0 auto 18px}
+  .cta .btn{background:#fff;color:var(--brand)}.cta .btn:hover{background:#eef2f9}
+  .disclaimer{font-size:12px;color:#9aa3b4;text-align:center;margin-top:26px;line-height:1.6}
+
+  /* Session banner */
+  .sessbar{display:flex;align-items:center;gap:10px;justify-content:center;background:#eef5ee;border:1px solid #d3ead9;
+    color:#3d7a51;border-radius:12px;padding:12px 16px;font-size:14px;font-weight:600;margin-bottom:22px;flex-wrap:wrap}
+  .sessbar .code{background:#fff;border:1px solid #cfe3d4;border-radius:8px;padding:2px 10px;letter-spacing:1px}
+
+  /* Dashboard */
+  .modepill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;text-transform:uppercase;
+    letter-spacing:1px;padding:5px 11px;border-radius:30px}
+  .modepill.live{background:#e7f4ec;color:#2f7d4d}.modepill.local{background:#fdf2e3;color:#9a6516}
+  .modepill .liveDot{width:7px;height:7px;border-radius:50%;background:currentColor;animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+  .dashtop{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:8px}
+  .sharepanel{background:#f7f9fc;border:1px solid var(--line);border-radius:14px;padding:18px;margin:18px 0}
+  .sharerow{display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap}
+  .sharelink{flex:1;min-width:220px;font-size:13px;background:#fff;border:1px solid var(--line);border-radius:9px;
+    padding:10px 12px;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:monospace}
+  .qrimg{width:104px;height:104px;border-radius:10px;border:1px solid var(--line);background:#fff}
+  .statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:6px}
+  .stat{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;text-align:center}
+  .stat .num{font-size:34px;font-weight:800;letter-spacing:-1px;color:var(--brand)}
+  .stat .num small{font-size:15px;color:#9aa3b4;font-weight:600}
+  .stat .lbl{font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-top:4px}
+  .stat .sub{font-size:12px;color:#9aa3b4;margin-top:3px}
+  .distrow{margin-bottom:12px}
+  .distlbl{display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-bottom:5px}
+  .distlbl .ct{color:var(--ink-soft);font-weight:500}
+  .disttrack{height:13px;background:#eef1f6;border-radius:8px;overflow:hidden}
+  .disttrack>div{height:100%;border-radius:8px;width:0;transition:width .8s ease}
+  .empty{text-align:center;color:var(--ink-soft);padding:30px 10px;font-size:15px}
+  .pblist{display:flex;flex-wrap:wrap;gap:8px}
+  .pbchip{font-size:13px;font-weight:600;padding:7px 13px;border-radius:30px;border:1px solid var(--line);background:#fff}
+  .pbchip b{font-weight:800}
+
+  @media(max-width:640px){
+    .card{padding:24px}h1{font-size:24px}.pname{font-size:30px}
+    .ss-grid{grid-template-columns:1fr}.teamgrid{grid-template-columns:repeat(2,1fr)}
+    .coverage{grid-template-columns:repeat(2,1fr)}.scale{gap:8px}.dots{gap:9px}
+    .poleL,.poleR{font-size:12px}.cdsubs{grid-template-columns:1fr}.statgrid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="hd">
+    <div class="cobrand"><span class="ss">System &amp; Soul</span><span class="x">×</span><span class="rp">RightPath®</span></div>
+    <span class="badge">Executive Preview</span>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ============ WELCOME ============ -->
+  <section class="screen active" id="welcome">
+    <div class="card">
+      <div id="welcomeSess"></div>
+      <div class="eyebrow">A 4-minute taste of the full assessment</div>
+      <h1>See your natural wiring in minutes —<br>before you roll it out to your team.</h1>
+      <p class="lead">The full RightPath® Profile pairs Path4 and Path6 to map how each person is wired.
+        This preview gives a directional read on the same four core factors, points you to one of the 16
+        blended profiles, and scores your readiness to drive change.</p>
+      <ul class="whatlist">
+        <li><span class="ic">1</span><div><b>16 quick questions.</b> Slide toward whichever statement sounds more like you.</div></li>
+        <li><span class="ic">2</span><div><b>Your blended profile + Change &amp; Drive Index.</b> One of the 16 types, with strengths and watch-outs.</div></li>
+        <li><span class="ic">3</span><div><b>The team view.</b> Run it across a whole leadership team and see the aggregate live.</div></li>
+      </ul>
+      <button class="btn" onclick="start()">Start the preview →</button>
+      <div style="margin-top:18px"><button class="linkbtn" onclick="showFacilitator()">Running this with a team? Open facilitator mode →</button></div>
+      <div class="note" style="margin-top:22px">This is a directional preview built to demonstrate the experience.
+        The official RightPath® Profile is a psychometrically validated instrument delivered through a certified practitioner.</div>
+    </div>
+  </section>
+
+  <!-- ============ FACILITATOR ============ -->
+  <section class="screen" id="facilitator">
+    <div class="card">
+      <div class="eyebrow">Facilitator mode</div>
+      <h1>Run a team session</h1>
+      <p class="lead">Create a session, share the link, and watch results roll in on a live dashboard as each
+        person completes the 4-minute preview.</p>
+      <label class="flabel">Session name</label>
+      <input id="sessInput" class="roleField" type="text" placeholder="e.g. Acme Leadership Offsite" autocomplete="off" oninput="onSessInput()">
+      <div id="modeNote"></div>
+      <div class="btnrow">
+        <button class="btn alt" onclick="showScreen('welcome')">← Back</button>
+        <button class="btn" id="sessGo" onclick="openSessionDashboard()" disabled>Open live dashboard →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ABOUT YOU (name + role) ============ -->
+  <section class="screen" id="role">
+    <div class="card">
+      <div id="aboutSess"></div>
+      <div class="eyebrow">First, a little about you</div>
+      <h1 id="aboutTitle">What's your name and role?</h1>
+      <p class="lead" id="aboutLead">We'll use these to label your spot on the team map.</p>
+      <label class="flabel">Your name</label>
+      <input id="nameInput" class="roleField" type="text" placeholder="e.g. Jordan Smith" autocomplete="off" oninput="onAboutInput()">
+      <label class="flabel">Your role</label>
+      <input id="roleInput" class="roleField" type="text" placeholder="e.g. CEO, Head of People, VP of Sales…"
+        autocomplete="off" oninput="onAboutInput()" onkeydown="if(event.key==='Enter')beginQuiz()" style="margin-bottom:8px">
+      <div class="rolechips" id="roleChips"></div>
+      <div class="btnrow">
+        <button class="btn alt" onclick="showScreen('welcome')">← Back</button>
+        <button class="btn" id="roleNext" onclick="beginQuiz()" disabled>Continue →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ QUESTIONS ============ -->
+  <section class="screen" id="quiz">
+    <div class="card">
+      <div class="prog"><div id="bar"></div></div>
+      <div class="progmeta"><span id="qcount">Question 1 of 16</span><span id="qfactor">Control &amp; Agenda</span></div>
+      <div class="qsub">Which sounds more like you, and how strongly?</div>
+      <div class="q" id="qtext">—</div>
+      <div class="scale">
+        <div class="poleL" id="poleL">left</div>
+        <div class="dots" id="dots"></div>
+        <div class="poleR" id="poleR">right</div>
+      </div>
+      <div class="endlbl"><span>Strongly</span><span>Neutral</span><span>Strongly</span></div>
+      <div class="btnrow">
+        <button class="btn alt" id="backBtn" onclick="back()">← Back</button>
+        <button class="btn" id="nextBtn" onclick="next()" disabled>Next →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ INDIVIDUAL RESULTS ============ -->
+  <section class="screen" id="results">
+    <div class="card">
+      <div id="resSessBanner"></div>
+      <div class="reshero">
+        <span class="famtag" id="famtag">Family</span>
+        <div class="pname" id="pname">Profile</div>
+        <p class="pdesc" id="pdesc">desc</p>
+        <div class="matchpill" id="matchpill"></div>
+      </div>
+
+      <div class="sec"><h3>Your four-factor read</h3><div id="facbars"></div></div>
+
+      <div class="sec">
+        <h3>Your Change &amp; Drive Index</h3>
+        <div class="cdwrap">
+          <div class="cdhero"><div class="cdscore" id="cdScore">—</div><span class="cdband" id="cdBand">—</span></div>
+          <div class="cdgauge"><div class="cdmark" id="cdMark"></div></div>
+          <div class="cdscalelbl"><span>Steady &amp; stabilizing</span><span>Balanced</span><span>High-octane catalyst</span></div>
+          <p class="cdtext" id="cdText">—</p>
+          <div class="cdsubs">
+            <div><div class="cdsublbl">Drive <span id="driveNum"></span></div><div class="cdbar"><div id="driveFill"></div></div>
+              <div class="cdcap">How strongly you initiate, take charge, and set the pace.</div></div>
+            <div><div class="cdsublbl">Change-Readiness <span id="changeNum"></span></div><div class="cdbar"><div id="changeFill"></div></div>
+              <div class="cdcap">Your openness to — and appetite for — change and fast movement.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h3>Where you'll shine &amp; where to watch</h3>
+        <div class="ss-grid">
+          <div class="ss-box str"><h4>Natural strengths</h4><ul id="strList"></ul></div>
+          <div class="ss-box stg"><h4>Situational struggles</h4><ul id="stgList"></ul></div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h3>You at work</h3>
+        <div class="atwork"><p id="atworkText">—</p>
+          <div style="margin-top:12px;font-size:14px"><b>You thrive when you can:</b></div>
+          <div class="chips" id="thriveChips"></div>
+        </div>
+      </div>
+
+      <div id="teamSection" class="sec">
+        <h3>Now imagine your whole team mapped this way</h3>
+        <div class="teamwrap">
+          <p style="font-size:15px;color:var(--ink-soft)">Here's a sample leadership team. In a real engagement,
+            every box is a real person — and you instantly see the blend, the natural tensions, and the blind spots.</p>
+          <div class="teamgrid" id="teamGrid"></div>
+          <div style="font-size:13px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Team coverage across the four styles</div>
+          <div class="coverage" id="coverage"></div>
+          <div class="insight" id="teamInsight"></div>
+        </div>
+      </div>
+
+      <div class="cta">
+        <h3 id="ctaTitle">This is the 4-minute version. Imagine the full picture.</h3>
+        <p id="ctaText">The complete RightPath® Profile adds the Path6 motivational layer, validated scoring, and a guided
+          debrief — then we map it across your whole team to drive hiring, communication, and leadership decisions.</p>
+        <button class="btn" id="ctaBtn" onclick="alert('Replace with your booking link or contact flow.')">Book a team walkthrough →</button>
+      </div>
+
+      <div class="btnrow" style="justify-content:center">
+        <button class="btn alt" onclick="restart()">↺ Retake the preview</button>
+      </div>
+      <div class="disclaimer">
+        Directional preview only · Not the validated RightPath® instrument · RightPath® is a registered trademark of RightPath Resources.<br>
+        Delivered in partnership by System &amp; Soul.
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TEAM DASHBOARD ============ -->
+  <section class="screen" id="dashboard">
+    <div class="card">
+      <div class="dashtop">
+        <div>
+          <div class="eyebrow">Live team dashboard</div>
+          <h1 id="dashTitle" style="margin-bottom:6px">Team session</h1>
+          <span class="modepill" id="modePill"><span class="liveDot"></span><span id="modeText">—</span></span>
+        </div>
+        <button class="btn alt sm" onclick="exitDashboard()">← Exit</button>
+      </div>
+
+      <div class="sharepanel">
+        <div style="font-size:13px;font-weight:700;color:var(--ink-soft)">Invite people to take it</div>
+        <div class="sharerow">
+          <div style="flex:1;min-width:220px">
+            <div class="sharelink" id="shareLink">—</div>
+            <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn sm" onclick="copyShare()">Copy invite link</button>
+              <button class="btn alt sm" onclick="addOnThisDevice()">+ Add someone on this device</button>
+            </div>
+          </div>
+          <img class="qrimg" id="qrImg" alt="QR code">
+        </div>
+        <div id="dashModeNote"></div>
+      </div>
+
+      <div class="statgrid">
+        <div class="stat"><div class="num" id="statCount">0</div><div class="lbl">Responses</div><div class="sub" id="statCountSub">waiting…</div></div>
+        <div class="stat"><div class="num" id="statCD">—</div><div class="lbl">Avg Change &amp; Drive</div><div class="sub" id="statCDband">—</div></div>
+        <div class="stat"><div class="num" id="statBalance">—</div><div class="lbl">Style balance</div><div class="sub" id="statBalanceSub">—</div></div>
+      </div>
+
+      <div id="dashEmpty" class="empty">No responses yet. Share the invite link above — results appear here live.</div>
+
+      <div id="dashBody" style="display:none">
+        <div class="sec"><h3>Style distribution</h3><div id="distBars"></div></div>
+        <div class="sec"><h3>The team, mapped</h3>
+          <div class="teamwrap" style="background:#fff">
+            <div class="teamgrid" id="dashTeamGrid"></div>
+            <div style="font-size:13px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:8px 0 4px">Coverage across the four styles</div>
+            <div class="coverage" id="dashCoverage"></div>
+            <div class="insight" id="dashInsight"></div>
+          </div>
+        </div>
+        <div class="sec"><h3>Team four-factor tendency (average)</h3><div id="dashFacBars"></div></div>
+        <div class="sec"><h3>Profiles in the room</h3><div class="pblist" id="dashProfiles"></div></div>
+      </div>
+
+      <div class="disclaimer">
+        Directional preview only · Not the validated RightPath® instrument · RightPath® is a registered trademark of RightPath Resources.<br>
+        Delivered in partnership by System &amp; Soul.
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+/* ================= CONFIG ================= */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCNAeRMy9xNB3A-IoD5HfX3Du1NuZM-O6A",
+  authDomain: "right-path-ba5d3.firebaseapp.com",
+  projectId: "right-path-ba5d3",
+  storageBucket: "right-path-ba5d3.firebasestorage.app",
+  messagingSenderId: "181666391303",
+  appId: "1:181666391303:web:c49d36aba5d85d09a5d1a2",
+  measurementId: "G-C23CWB7J4Z"
+};
+
+/* ================= MODEL ================= */
+const FACTORS = [
+  { key:"C", name:"Control & Agenda", left:"Accommodating", right:"Directing" },
+  { key:"I", name:"Interaction",      left:"Reserved",      right:"Engaging"  },
+  { key:"P", name:"Conflict & Pace",  left:"Harmonious",    right:"Challenging" },
+  { key:"O", name:"Order & Detail",   left:"Spontaneous",   right:"Methodical" }
+];
+const POLES = {
+  C:{ left:{ name:"Accommodating",
+        str:["Supportive and cooperative","Lets others lead and shine","Low-ego, easy to work with","Flexible to the team's agenda"],
+        stg:["May hold back when they should push","Can defer decisions to others","Reluctant to claim authority","Easy to overlook in a room"] },
+      right:{ name:"Directing",
+        str:["Initiates and sets the agenda","Results-oriented","Speaks directly","Competitive, takes on challenges","Sees the strategic/future potential"],
+        stg:["Can discount others' input","May come across as controlling or pushy","Can be a poor listener","Avoids routine and detail"] } },
+  I:{ left:{ name:"Reserved",
+        str:["Task-focused and serious","Realistic and practical","Perseveres quietly","Likes focus and closure"],
+        stg:["May appear aloof or hard to read","Can seem skeptical or curt","Drained by heavy social contact","Slow to open up"] },
+      right:{ name:"Engaging",
+        str:["Builds relationships easily","Enthusiastic and persuasive","Optimistic and energizing","Reads the room well"],
+        stg:["May talk more than listen","Can seek approval","Loses focus in the social swirl","May over-promise to please"] } },
+  P:{ left:{ name:"Harmonious",
+        str:["Warm and compassionate","Builds harmony and trust","Patient and diplomatic","Steady, loyal teammate"],
+        stg:["May avoid necessary conflict","Slow to push change","Can be overly accommodating","Holds concerns inside"] },
+      right:{ name:"Challenging",
+        str:["Operates well in conflict","Objective and cool under pressure","Makes the difficult calls","Fast pace, promotes change","Favors logic over emotion"],
+        stg:["Can be blunt or abrupt","May seem impatient or critical","Risks appearing coldhearted","Tends toward restlessness"] } },
+  O:{ left:{ name:"Spontaneous",
+        str:["Flexible and versatile","Works with broad concepts","Improvises and adapts fast","Makes on-the-spot decisions"],
+        stg:["Not naturally organized","Can be careless with details","May bend or ignore rules","Risks 'winging it' too much"] },
+      right:{ name:"Methodical",
+        str:["Organized and prepared","Accurate with details","Follows proven procedures","Analyzes before deciding"],
+        stg:["Can be rigid or inflexible","May be overly picky","Over-relies on rules","Can miss the goal in the details"] } }
+};
+const QUESTIONS = [
+  {f:"C", a:"I'm happy to support someone else's plan", b:"I'd rather define the goal myself"},
+  {f:"C", a:"I let others take the lead", b:"I instinctively take charge"},
+  {f:"C", a:"I hold my opinion until asked", b:"I speak up directly and assert my view"},
+  {f:"C", a:"I avoid pushing people", b:"I'll push hard to get the result"},
+  {f:"I", a:"Time alone recharges me", b:"Being around people energizes me"},
+  {f:"I", a:"I keep to a small, focused circle", b:"I love meeting and connecting with new people"},
+  {f:"I", a:"I think things through privately", b:"I think out loud with others"},
+  {f:"I", a:"I'm reserved until I know someone", b:"I'm warm and outgoing right away"},
+  {f:"P", a:"I smooth things over and seek harmony", b:"I'm comfortable with direct debate and conflict"},
+  {f:"P", a:"I lead with empathy and warmth", b:"I lead with logic and objectivity"},
+  {f:"P", a:"I prefer a steady, measured pace", b:"I move fast and push for change"},
+  {f:"P", a:"I accommodate people's feelings", b:"I'll make the hard call regardless"},
+  {f:"O", a:"I improvise and go with my gut", b:"I plan and prepare carefully"},
+  {f:"O", a:"Details and routine drain me", b:"I'm energized by accuracy and detail"},
+  {f:"O", a:"I'm comfortable winging it", b:"I follow established procedures"},
+  {f:"O", a:"I keep things flexible and loose", b:"I keep things organized and structured"}
+];
+const PROFILES = [
+  {name:"Director",          fam:"Prescriptive", sig:[ .8, .4, .6,-.3], desc:"Always ready to lead with vision and ideas. Directors see the big picture fast and move teams toward common goals.", work:"You realize your highest potential when you can set direction, build something new, and lead toward a bold outcome.", thrives:["Set vision","Lead","Build","Decide"]},
+  {name:"Driver",           fam:"Prescriptive", sig:[ .8,-.3, .7, .0], desc:"A natural leader. The Driver takes charge, delegates well, and takes decisive action to achieve results.", work:"You're at your best with independence, real challenges, problems to solve, and a minimum of fine detail.", thrives:["Take charge","Drive results","Initiate","Compete"]},
+  {name:"Strategic Thinker", fam:"Prescriptive", sig:[ .7,-.2, .5, .6], desc:"Thrives where results matter and focuses on the toughest challenges. Strategic Thinkers are great at reaching their goals.", work:"You shine when you can solve hard, high-stakes problems with both ambition and rigor.", thrives:["Strategize","Solve","Plan","Achieve"]},
+  {name:"Motivator",        fam:"Motivating", sig:[ .5, .8, .5,-.3], desc:"Brings energy and enthusiasm with a strong bias for results, communicating to mobilize others around a goal.", work:"You thrive when you can rally people, sell the vision, and turn energy into momentum.", thrives:["Inspire","Mobilize","Persuade","Energize"]},
+  {name:"Networker",        fam:"Motivating", sig:[ .3, .9, .2,-.5], desc:"Always expanding. The Networker loves anything new and uses verbal skills to build relationships and connections.", work:"You shine when you can meet people, spark new ideas, and connect the dots between them.", thrives:["Connect","Explore","Influence","Create buzz"]},
+  {name:"Encourager",       fam:"Motivating", sig:[-.2, .7,-.5, .0], desc:"An excellent listener, responsive to others, with practical advice for whatever problem you bring them.", work:"You thrive when you can support people, coach them, and help them succeed.", thrives:["Listen","Advise","Support","Coach"]},
+  {name:"Harmonizer",       fam:"Motivating", sig:[-.3, .6,-.7,-.2], desc:"Always eager to be on a team. The Harmonizer supports others and builds cooperation throughout an organization.", work:"You're at your best when you can keep people aligned, included, and pulling together.", thrives:["Unite","Include","Cooperate","Smooth"]},
+  {name:"Supporter",        fam:"Collaborative", sig:[-.5, .2,-.6, .0], desc:"Always a loyal friend. The Supporter thrives helping others and finds fulfillment through their success.", work:"You shine in a stable, people-centered role where loyalty and dependability are valued.", thrives:["Help","Stabilize","Serve","Stay loyal"]},
+  {name:"Administrator",    fam:"Collaborative", sig:[-.4,-.3,-.4, .5], desc:"A determined person whose strength is consistency, reliability, and persistence. You can always depend on them.", work:"You thrive with clear systems, steady follow-through, and dependable execution.", thrives:["Execute","Maintain","Follow through","Stabilize"]},
+  {name:"Detailist",        fam:"Collaborative", sig:[-.4,-.4,-.3, .8], desc:"Practices organization and discipline daily. The Detailist is always dependable in the office.", work:"You're at your best when accuracy, order, and careful process are what win.", thrives:["Organize","Track","Perfect","Systematize"]},
+  {name:"Stylish Innovator",fam:"Collaborative", sig:[ .4, .5, .0, .5], desc:"A rare blend of people skills and organizational skill — forms deep relationships while sharing expertise and pushing for results.", work:"You shine where relationships, polish, and follow-through all matter at once.", thrives:["Relate","Refine","Deliver","Innovate"]},
+  {name:"Adapter",          fam:"Collaborative", sig:[-.1, .1,-.2,-.1], desc:"Always a team player, the Adapter adjusts to the professional environment with ease.", work:"Your versatility lets you flex into whatever the moment and the team need.", thrives:["Adapt","Flex","Bridge","Cooperate"]},
+  {name:"Analyzer",         fam:"Methodical", sig:[ .3,-.4, .5, .7], desc:"Task-oriented with a competitive nature — wants to initiate change while excelling in their environment.", work:"You thrive when you can dig into a problem, improve the system, and be right.", thrives:["Analyze","Improve","Initiate","Master"]},
+  {name:"Deep Thinker",     fam:"Methodical", sig:[-.3,-.5, .0, .6], desc:"Leans toward logical and philosophical thinking while searching for purpose and meaning in their work.", work:"You're at your best with space to think deeply and connect work to a larger purpose.", thrives:["Reflect","Reason","Research","Find meaning"]},
+  {name:"Researcher",       fam:"Methodical", sig:[ .0,-.4,-.1, .8], desc:"The job isn't done until it's done. The Researcher stays on track with every assignment while staying efficient.", work:"You shine when you can work thoroughly and efficiently toward a clear standard.", thrives:["Investigate","Complete","Verify","Optimize"]},
+  {name:"Cautious Thinker", fam:"Methodical", sig:[-.4,-.5,-.4, .8], desc:"Focused on accuracy and thoroughness, the Cautious Thinker contributes through careful reasoning.", work:"You're at your best where precision, caution, and getting it right truly matter.", thrives:["Check","Reason","Refine","Ensure quality"]}
+];
+const FAM_COLOR = {Prescriptive:"var(--presc)", Motivating:"var(--motiv)", Collaborative:"var(--collab)", Methodical:"var(--method)"};
+const FAM_HEX   = {Prescriptive:"#c8553d", Motivating:"#e0972f", Collaborative:"#4f9d69", Methodical:"#3a6ea5"};
+const FAM_DESC  = {Prescriptive:"High-performing and results-driving", Motivating:"Relational influencers who mobilize people",
+  Collaborative:"Supportive, steady — the glue of the team", Methodical:"Diligent, precise, and thorough"};
+const FAMS = ["Prescriptive","Motivating","Collaborative","Methodical"];
+
+/* ================= STORE (Firebase online | localStorage offline) ================= */
+const Store = {
+  online:false, db:null,
+  async init(){
+    if(FIREBASE_CONFIG && FIREBASE_CONFIG.projectId){
+      try{
+        await loadScript("https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js");
+        await loadScript("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js");
+        firebase.initializeApp(FIREBASE_CONFIG);
+        this.db = firebase.firestore(); this.online = true;
+      }catch(e){ console.warn("Firebase init failed, falling back to local mode:", e); this.online=false; }
+    }
+  },
+  async add(code, data){
+    const rec = {...data, ts:Date.now()};
+    if(this.online){ await this.db.collection("rp_sessions").doc(code).collection("responses").add(rec); }
+    else { const a=this._local(code); a.push(rec); localStorage.setItem(this._key(code), JSON.stringify(a));
+           window.dispatchEvent(new Event("rp-local-update")); }
+  },
+  subscribe(code, cb){
+    if(this.online){
+      return this.db.collection("rp_sessions").doc(code).collection("responses").orderBy("ts")
+        .onSnapshot(s=>cb(s.docs.map(d=>d.data())), e=>console.warn(e));
+    } else {
+      const read=()=>cb(this._local(code)); read();
+      const h=()=>read(); window.addEventListener("storage",h); window.addEventListener("rp-local-update",h);
+      return ()=>{ window.removeEventListener("storage",h); window.removeEventListener("rp-local-update",h); };
+    }
+  },
+  _key(c){ return "rp_session_"+c; },
+  _local(c){ try{ return JSON.parse(localStorage.getItem(this._key(c))||"[]"); }catch(e){ return []; } }
+};
+function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement("script");
+  s.src=src; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
+
+/* ================= STATE ================= */
+let qi = 0, userName = "", userRole = "";
+let sessionCode = null;        // set when taking inside a session
+let dashSession = null, dashUnsub = null;
+const answers = new Array(QUESTIONS.length).fill(null);
+const ROLE_PRESETS = ["CEO","COO","CFO","CHRO / Head of People","CRO / Head of Sales","CMO","CTO","Founder","VP / Director"];
+
+/* ================= UTIL ================= */
+function showScreen(id){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function slug(s){ return s.trim().toUpperCase().replace(/[^A-Z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,32) || "TEAM"; }
+function baseUrl(){ return location.origin + location.pathname; }
+function respondentLink(code){ return baseUrl()+"?s="+encodeURIComponent(code); }
+function dashboardLink(code){ return baseUrl()+"?s="+encodeURIComponent(code)+"&view=dashboard"; }
+
+/* ================= INIT / ROUTING ================= */
+(async function init(){
+  await Store.init();
+  const p = new URLSearchParams(location.search);
+  const s = p.get("s"); const view = p.get("view");
+  if(s && view==="dashboard"){ openDashboard(s); return; }
+  if(s){ // respondent invited to a session
+    sessionCode = s;
+    document.getElementById("welcomeSess").innerHTML =
+      `<div class="sessbar">You've been invited to the team session <span class="code">${escapeHtml(s)}</span></div>`;
+  }
+})();
+function escapeHtml(t){ return (t||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+/* ================= INDIVIDUAL FLOW ================= */
+function start(){
+  showScreen("role"); renderRoleChips();
+  document.getElementById("aboutSess").innerHTML = sessionCode
+    ? `<div class="sessbar">Joining session <span class="code">${escapeHtml(sessionCode)}</span></div>` : "";
+  document.getElementById("nameInput").focus();
+}
+function renderRoleChips(){
+  const wrap=document.getElementById("roleChips"); wrap.innerHTML="";
+  ROLE_PRESETS.forEach(r=>{ const c=document.createElement("div"); c.className="rolechip"; c.textContent=r;
+    c.onclick=()=>{ document.getElementById("roleInput").value=r; onAboutInput(); }; wrap.appendChild(c); });
+}
+function onAboutInput(){
+  const n=document.getElementById("nameInput").value.trim();
+  const r=document.getElementById("roleInput").value.trim();
+  document.getElementById("roleNext").disabled = !(n && r);
+  document.querySelectorAll(".rolechip").forEach(c=>c.classList.toggle("sel", c.textContent===r));
+}
+function beginQuiz(){
+  const n=document.getElementById("nameInput").value.trim();
+  const r=document.getElementById("roleInput").value.trim();
+  if(!n||!r) return;
+  userName=n; userRole=r; qi=0; showScreen("quiz"); renderQ();
+}
+function renderQ(){
+  const q=QUESTIONS[qi]; const fac=FACTORS.find(f=>f.key===q.f);
+  document.getElementById("qcount").textContent=`Question ${qi+1} of ${QUESTIONS.length}`;
+  document.getElementById("qfactor").textContent=fac.name;
+  document.getElementById("bar").style.width=(qi/QUESTIONS.length*100)+"%";
+  document.getElementById("qtext").textContent="";
+  document.getElementById("poleL").textContent=q.a;
+  document.getElementById("poleR").textContent=q.b;
+  const dots=document.getElementById("dots"); dots.innerHTML="";
+  const vals=[-2,-1,0,1,2];
+  vals.forEach((v,i)=>{ const d=document.createElement("div");
+    d.className=`dot s${i+1}`+(answers[qi]===v?" sel":"");
+    d.onclick=()=>{ answers[qi]=v; renderDots(); document.getElementById("nextBtn").disabled=false;
+      setTimeout(()=>{ if(qi<QUESTIONS.length-1){ qi++; renderQ(); } },220); };
+    dots.appendChild(d); });
+  document.getElementById("backBtn").style.visibility = qi===0?"hidden":"visible";
+  document.getElementById("nextBtn").disabled = answers[qi]===null;
+  document.getElementById("nextBtn").textContent = qi===QUESTIONS.length-1?"See my profile →":"Next →";
+}
+function renderDots(){ const vals=[-2,-1,0,1,2];
+  document.querySelectorAll("#dots .dot").forEach((d,i)=>d.classList.toggle("sel", answers[qi]===vals[i])); }
+function next(){ if(answers[qi]===null)return; if(qi<QUESTIONS.length-1){qi++;renderQ();} else finish(); }
+function back(){ if(qi>0){qi--;renderQ();} }
+
+/* ================= SCORING ================= */
+function scoreFactors(ans){
+  const sums={C:0,I:0,P:0,O:0}, counts={C:0,I:0,P:0,O:0};
+  QUESTIONS.forEach((q,i)=>{ sums[q.f]+=(ans[i]||0); counts[q.f]++; });
+  const norm={}; for(const k in sums) norm[k]=sums[k]/(counts[k]*2);
+  return norm;
+}
+function bestProfile(norm){
+  let best=null,bd=1e9;
+  PROFILES.forEach(p=>{ let d=Math.sqrt((p.sig[0]-norm.C)**2+(p.sig[1]-norm.I)**2+(p.sig[2]-norm.P)**2+(p.sig[3]-norm.O)**2);
+    if(p.name==="Adapter") d+=0.25; if(d<bd){bd=d;best=p;} });
+  return {p:best, dist:bd};
+}
+function changeDrive(norm){
+  const clamp=v=>Math.max(-1,Math.min(1,v)); const to100=v=>Math.round((clamp(v)+1)/2*100);
+  const driveNorm=norm.C*0.6+norm.P*0.4, changeNorm=norm.P*0.5+(-norm.O)*0.5, comboNorm=(driveNorm+changeNorm)/2;
+  return { index:to100(comboNorm), drive:to100(driveNorm), change:to100(changeNorm) };
+}
+function cdBand(v){
+  if(v>=78) return {band:"High-Octane Catalyst", col:"var(--presc)",
+    txt:"Exceptional drive and a strong appetite for change — pushes hard, moves fast, and challenges the status quo. Watch-out: outpacing the team."};
+  if(v>=60) return {band:"Change-Ready", col:"var(--motiv)",
+    txt:"Comfortable initiating change and keeping momentum. Champions new direction while staying open to others — give steadier members time to come along."};
+  if(v>=42) return {band:"Balanced Mover", col:"var(--brand2)",
+    txt:"Flexes between driving change and holding steady, reading what each situation needs. The growth edge is knowing when to force the pace versus protect stability."};
+  if(v>=26) return {band:"Steady Builder", col:"var(--collab)",
+    txt:"Favors stability, consistency, and proven approaches. Protects the team from change fatigue and keeps things grounded — may need a nudge to move early."};
+  return {band:"Anchor & Stabilizer", col:"var(--collab)",
+    txt:"A stabilizing force who values continuity and careful pacing. Keeps the organization grounded; rapid, high-pressure change is where they feel most stretched."};
+}
+
+/* ================= FINISH (individual) ================= */
+function finish(){
+  document.getElementById("bar").style.width="100%";
+  const norm=scoreFactors(answers);
+  const {p,dist}=bestProfile(norm);
+  const cd=changeDrive(norm);
+  renderResult(p,norm,dist,cd);
+  if(sessionCode){
+    const rec={ name:userName, role:userRole, profile:p.name, family:p.fam,
+      C:norm.C,I:norm.I,P:norm.P,O:norm.O, cdIndex:cd.index, drive:cd.drive, change:cd.change };
+    Store.add(sessionCode, rec).catch(e=>console.warn(e));
+  }
+  showScreen("results");
+}
+function renderResult(p,norm,dist,cd){
+  const banner=document.getElementById("resSessBanner");
+  if(sessionCode){
+    banner.innerHTML=`<div class="sessbar">✓ Your result was added to <span class="code">${escapeHtml(sessionCode)}</span>
+      <button class="btn sm" style="margin-left:6px" onclick="openDashboard('${escapeHtml(sessionCode)}')">View live team dashboard →</button></div>`;
+  } else banner.innerHTML="";
+
+  const col=FAM_COLOR[p.fam];
+  const ft=document.getElementById("famtag"); ft.textContent=p.fam+" · "+FAM_DESC[p.fam]; ft.style.background=col;
+  document.getElementById("pname").textContent=p.name;
+  document.getElementById("pdesc").textContent=p.desc;
+  const matchPct=Math.max(58,Math.round(100-dist*42));
+  document.getElementById("matchpill").textContent=`Closest of the 16 blended profiles · ~${matchPct}% match to your pattern`;
+
+  // factor bars — with the profile's baseline overlaid for comparison
+  const SIGIDX={C:0,I:1,P:2,O:3};
+  const fb=document.getElementById("facbars");
+  fb.innerHTML=`<div class="faclegend"><span><i class="lgyou"></i>You</span><span><i class="lgbase"></i>${p.name} baseline</span></div>`;
+  ["C","I","P","O"].forEach(k=>{
+    const fac=FACTORS.find(f=>f.key===k);
+    const pos=(norm[k]+1)/2*100;
+    const basePos=(p.sig[SIGIDX[k]]+1)/2*100;
+    const poleName = norm[k]>=0?POLES[k].right.name:POLES[k].left.name;
+    const div=document.createElement("div"); div.className="fac";
+    div.innerHTML=`<div class="faclbl"><span class="l">${fac.left}</span><b>${poleName}</b><span class="r">${fac.right}</span></div>
+      <div class="factrack"><div class="mid"></div>
+        <div class="facbase" style="left:${basePos}%"></div>
+        <div class="facmark" style="left:50%"></div></div>`;
+    fb.appendChild(div); setTimeout(()=>div.querySelector(".facmark").style.left=pos+"%",60);
+  });
+  const cap=document.createElement("div"); cap.className="faccap";
+  cap.innerHTML=`The diamonds (◆) mark the typical <b>${p.name}</b> pattern. The closer your circle (●) sits to each diamond, the more your wiring matches this profile.`;
+  fb.appendChild(cap);
+
+  // change & drive
+  const b=cdBand(cd.index); const bandEl=document.getElementById("cdBand");
+  bandEl.textContent=b.band; bandEl.style.background=b.col;
+  document.getElementById("cdScore").innerHTML=cd.index+'<small>/100</small>';
+  document.getElementById("cdText").textContent=b.txt;
+  document.getElementById("driveNum").textContent=cd.drive;
+  document.getElementById("changeNum").textContent=cd.change;
+  setTimeout(()=>{ document.getElementById("cdMark").style.left=cd.index+"%";
+    document.getElementById("driveFill").style.width=cd.drive+"%";
+    document.getElementById("changeFill").style.width=cd.change+"%"; },80);
+
+  // strengths/struggles
+  const strs=[],stgs=[];
+  ["C","I","P","O"].forEach(k=>{ const side=norm[k]>=0?POLES[k].right:POLES[k].left; strs.push(side.str[0]); stgs.push(side.stg[0]); });
+  document.getElementById("strList").innerHTML=strs.map(s=>`<li>${s}</li>`).join("");
+  document.getElementById("stgList").innerHTML=stgs.map(s=>`<li>${s}</li>`).join("");
+
+  // at work
+  document.getElementById("atworkText").textContent=p.work;
+  document.getElementById("thriveChips").innerHTML=p.thrives.map(t=>`<span class="chip">${t}</span>`).join("");
+
+  renderSampleTeam(p);
+}
+
+/* ================= SAMPLE TEAM (individual page) ================= */
+const TEAM_POOL = [
+  {role:"CEO",prof:"Driver",fam:"Prescriptive"},{role:"COO",prof:"Administrator",fam:"Collaborative"},
+  {role:"Head of Sales",prof:"Motivator",fam:"Motivating"},{role:"CFO",prof:"Cautious Thinker",fam:"Methodical"},
+  {role:"Head of People",prof:"Encourager",fam:"Motivating"},{role:"CTO",prof:"Strategic Thinker",fam:"Prescriptive"},
+  {role:"Head of Product",prof:"Detailist",fam:"Methodical"}
+];
+function renderSampleTeam(you){
+  const grid=document.getElementById("teamGrid"); grid.innerHTML="";
+  const rl=(userRole||"You").toLowerCase();
+  const mates=TEAM_POOL.filter(m=>{ const r=m.role.toLowerCase(); return !(r===rl||rl.includes(r)||r.includes(rl)); }).slice(0,5);
+  const team=[{role:userRole||"You",prof:you.name,fam:you.fam,name:userName,you:true},...mates];
+  team.forEach(m=>{ const col=FAM_COLOR[m.fam]; const d=document.createElement("div");
+    d.className="member"+(m.you?" you":"");
+    d.innerHTML=`${m.you?'<span class="youtag">YOU</span>':''}<div class="strip" style="background:${col}"></div>
+      <div class="role">${escapeHtml(m.role)}</div><div class="mp">${m.prof}</div>
+      ${m.name?`<div class="mname">${escapeHtml(m.name)}</div>`:`<div class="mf">${m.fam}</div>`}`;
+    grid.appendChild(d); });
+  const counts={}; FAMS.forEach(f=>counts[f]=0); team.forEach(m=>counts[m.fam]++);
+  renderCoverage("coverage", counts);
+  const low=FAMS.filter(f=>counts[f]===0); const high=FAMS.reduce((a,b)=>counts[b]>counts[a]?b:a,FAMS[0]);
+  let txt=`This team leans <b>${high}</b>. `;
+  txt += low.length ? `There's little or no <b>${low.join(" or ")}</b> energy in the room — a predictable blind spot. `
+                    : `All four styles are represented — a balanced blend with its own natural tensions to manage. `;
+  txt+=`As <b>${you.name}</b>, you'd bring <b>${you.fam}</b> energy. The full RightPath® map shows leaders exactly where they complement each other, where they'll clash, and how to communicate across styles.`;
+  document.getElementById("teamInsight").innerHTML=txt;
+}
+const COVERAGE_ORDER = ["Prescriptive","Motivating","Methodical","Collaborative"]; // quadrant layout
+function renderCoverage(elId, counts){
+  const cov=document.getElementById(elId); cov.innerHTML="";
+  COVERAGE_ORDER.forEach(f=>{ const d=document.createElement("div"); d.className="cov";
+    d.innerHTML=`<span class="dotc" style="background:${FAM_COLOR[f]}"></span><div class="cn">${f}</div>
+      <div class="cc">${counts[f]} ${counts[f]===1?'person':'people'}</div>`; cov.appendChild(d); });
+}
+
+/* ================= FACILITATOR / DASHBOARD ================= */
+function showFacilitator(){
+  showScreen("facilitator");
+  const note=document.getElementById("modeNote");
+  note.innerHTML = Store.online
+    ? `<div class="note" style="margin-top:14px"><b>Live mode is on.</b> Anyone with the invite link can take it from their own device and results sync here in real time.</div>`
+    : `<div class="note warn" style="margin-top:14px"><b>Local demo mode.</b> No backend is connected, so the invite link only works for people taking it on <b>this</b> device/browser. To enable a real shared link with live sync across devices, add your Firebase config (see the setup notes at the top of the file).</div>`;
+  document.getElementById("sessInput").focus();
+}
+function onSessInput(){ document.getElementById("sessGo").disabled = document.getElementById("sessInput").value.trim().length===0; }
+function openSessionDashboard(){ const v=document.getElementById("sessInput").value.trim(); if(!v)return; openDashboard(slug(v)); }
+
+function openDashboard(code){
+  dashSession=code;
+  showScreen("dashboard");
+  document.getElementById("dashTitle").textContent="Session: "+code;
+  const pill=document.getElementById("modePill"), mt=document.getElementById("modeText");
+  if(Store.online){ pill.className="modepill live"; mt.textContent="Live · syncing across devices"; }
+  else { pill.className="modepill local"; mt.textContent="Local demo · this device only"; }
+  const link=respondentLink(code);
+  document.getElementById("shareLink").textContent=link;
+  document.getElementById("qrImg").src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data="+encodeURIComponent(link);
+  document.getElementById("dashModeNote").innerHTML = Store.online ? "" :
+    `<div class="note warn" style="margin-top:12px">Local demo mode — use “Add someone on this device” to simulate teammates. Connect Firebase for a real shared link.</div>`;
+  if(dashUnsub){ dashUnsub(); dashUnsub=null; }
+  dashUnsub = Store.subscribe(code, renderDashboard);
+}
+function exitDashboard(){ if(dashUnsub){dashUnsub();dashUnsub=null;} dashSession=null; sessionCode=null; showScreen("welcome"); }
+function addOnThisDevice(){ sessionCode=dashSession; start(); }
+function copyShare(){ const t=respondentLink(dashSession);
+  navigator.clipboard?.writeText(t).then(()=>toast("Invite link copied")).catch(()=>toast("Copy failed — select the link manually")); }
+function toast(m){ const d=document.createElement("div");
+  d.textContent=m; d.style.cssText="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1c2330;color:#fff;padding:11px 20px;border-radius:30px;font-size:14px;z-index:99;box-shadow:0 8px 24px rgba(0,0,0,.25)";
+  document.body.appendChild(d); setTimeout(()=>d.remove(),1800); }
+
+function renderDashboard(rows){
+  const n=rows.length;
+  document.getElementById("statCount").textContent=n;
+  document.getElementById("statCountSub").textContent = n===0?"waiting…":(n===1?"1 leader":n+" leaders");
+  const empty=document.getElementById("dashEmpty"), body=document.getElementById("dashBody");
+  if(n===0){ empty.style.display="block"; body.style.display="none";
+    document.getElementById("statCD").textContent="—"; document.getElementById("statCDband").textContent="—";
+    document.getElementById("statBalance").textContent="—"; document.getElementById("statBalanceSub").textContent="—"; return; }
+  empty.style.display="none"; body.style.display="block";
+
+  // avg change & drive
+  const avgCD=Math.round(rows.reduce((s,r)=>s+(r.cdIndex||0),0)/n);
+  document.getElementById("statCD").innerHTML=avgCD+'<small>/100</small>';
+  document.getElementById("statCDband").textContent=cdBand(avgCD).band;
+
+  // family counts
+  const counts={}; FAMS.forEach(f=>counts[f]=0); rows.forEach(r=>{ if(counts[r.family]!=null) counts[r.family]++; });
+  const repd=FAMS.filter(f=>counts[f]>0).length;
+  document.getElementById("statBalance").innerHTML=repd+'<small>/4</small>';
+  document.getElementById("statBalanceSub").textContent=repd===4?"all styles present":(4-repd)+" style"+(repd===3?"":"s")+" missing";
+
+  // distribution bars
+  const db=document.getElementById("distBars"); db.innerHTML="";
+  COVERAGE_ORDER.forEach(f=>{ const ct=counts[f], pct=Math.round(ct/n*100);
+    const d=document.createElement("div"); d.className="distrow";
+    d.innerHTML=`<div class="distlbl"><span>${f} <span style="color:#9aa3b4;font-weight:500">· ${FAM_DESC[f]}</span></span><span class="ct">${ct} (${pct}%)</span></div>
+      <div class="disttrack"><div style="background:${FAM_COLOR[f]}"></div></div>`;
+    db.appendChild(d); setTimeout(()=>d.querySelector(".disttrack>div").style.width=pct+"%",60); });
+
+  // team grid (real people)
+  const grid=document.getElementById("dashTeamGrid"); grid.innerHTML="";
+  rows.forEach(r=>{ const col=FAM_COLOR[r.family]||"#999"; const d=document.createElement("div"); d.className="member";
+    d.innerHTML=`<div class="strip" style="background:${col}"></div><div class="role">${escapeHtml(r.role||"")}</div>
+      <div class="mp">${escapeHtml(r.profile||"")}</div><div class="mname">${escapeHtml(r.name||"")}</div>`;
+    grid.appendChild(d); });
+  renderCoverage("dashCoverage", counts);
+
+  // avg factor bars
+  const avg={C:0,I:0,P:0,O:0}; rows.forEach(r=>{ avg.C+=r.C||0;avg.I+=r.I||0;avg.P+=r.P||0;avg.O+=r.O||0; });
+  ["C","I","P","O"].forEach(k=>avg[k]/=n);
+  const fb=document.getElementById("dashFacBars"); fb.innerHTML="";
+  ["C","I","P","O"].forEach(k=>{ const fac=FACTORS.find(f=>f.key===k); const pos=(avg[k]+1)/2*100;
+    const poleName=avg[k]>=0?POLES[k].right.name:POLES[k].left.name;
+    const div=document.createElement("div"); div.className="fac";
+    div.innerHTML=`<div class="faclbl"><span class="l">${fac.left}</span><b>${poleName} (team lean)</b><span class="r">${fac.right}</span></div>
+      <div class="factrack"><div class="mid"></div><div class="facmark" style="left:50%"></div></div>`;
+    fb.appendChild(div); setTimeout(()=>div.querySelector(".facmark").style.left=pos+"%",60); });
+
+  // profiles chips
+  const pc={}; rows.forEach(r=>pc[r.profile]=(pc[r.profile]||0)+1);
+  const pl=document.getElementById("dashProfiles"); pl.innerHTML="";
+  Object.entries(pc).sort((a,b)=>b[1]-a[1]).forEach(([name,ct])=>{
+    const prof=PROFILES.find(p=>p.name===name); const col=prof?FAM_COLOR[prof.fam]:"#999";
+    const c=document.createElement("div"); c.className="pbchip";
+    c.style.borderColor=col; c.innerHTML=`${name} ${ct>1?`<b>×${ct}</b>`:""}`; pl.appendChild(c); });
+
+  // insight
+  const low=FAMS.filter(f=>counts[f]===0); const high=FAMS.reduce((a,b)=>counts[b]>counts[a]?b:a,FAMS[0]);
+  const cdb=cdBand(avgCD);
+  let txt=`This group leans <b>${high}</b> and reads as <b>${cdb.band}</b> on Change &amp; Drive (avg ${avgCD}/100). `;
+  txt += low.length ? `No one is bringing <b>${low.join(" or ")}</b> energy — a collective blind spot worth naming. `
+                    : `All four styles are in the room — a well-rounded team that will still feel natural tension across styles. `;
+  txt+=`In a full RightPath® engagement, this is where the conversation gets practical: who complements whom, where decisions get stuck, and how to communicate across the gaps.`;
+  document.getElementById("dashInsight").innerHTML=txt;
+}
+
+/* ================= RESTART ================= */
+function restart(){
+  answers.fill(null); qi=0;
+  ["nameInput","roleInput"].forEach(id=>{ const e=document.getElementById(id); if(e)e.value=""; });
+  document.getElementById("roleNext").disabled=true;
+  // keep sessionCode if invited so they can hand the device to the next person
+  showScreen(sessionCode?"role":"welcome");
+  if(sessionCode){ start(); }
+}
+</script>
+</body>
+</html>
